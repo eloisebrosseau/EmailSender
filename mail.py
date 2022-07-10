@@ -3,7 +3,6 @@
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from pathlib import Path
 import csv
 import getpass
 import smtplib
@@ -17,39 +16,39 @@ def load_companies_info():
         return list(reader)
 
 
-def send_emails(email_address, password, companies, filename):
+def send_emails(email_address, password, companies, attachment_filename):
     context = ssl.create_default_context()
 
     with smtplib.SMTP_SSL(config.HOST, config.PORT, context=context) as smtp:
         smtp.login(email_address, password)
 
         for company in companies:
-            print(f'Email sent to {company["Email"]}')
+            print(f'Sending email to {company["Email"]}')
+
             msg = MIMEMultipart()
 
             msg['Subject'] = config.EMAIL_SUBJECT.format(company_name=company['Company'])
-            msg['To'] = company['Email']
             msg['From'] = email_address
+            msg['To'] = company['Email']
 
-            with open(filename, 'rb') as file:
+            msg.attach(MIMEText(config.EMAIL_CONTENT.format(name=company['Name'])))
+
+            with open(attachment_filename, 'rb') as file:
                 attachment = MIMEApplication(file.read())
 
-            attachment.add_header('content-disposition', 'attachment', filename=filename.name)
+            attachment.add_header('content-disposition', 'attachment', filename=attachment_filename.name)
             msg.attach(attachment)
-
-            msg.attach(MIMEText(config.EMAIL_CONTENT.format(first_name=company['First Name'], last_name=company['Last Name'])))
 
             smtp.send_message(msg)
 
 
 def main():
-    companies_info = load_companies_info()
+    companies = load_companies_info()
 
     email_address = input('Email address: ')
     password = getpass.getpass()
-    filename = config.VISIBILITY_PLAN_PDF
-    
-    send_emails(email_address, password, companies_info, filename)
+
+    send_emails(email_address, password, companies, config.ATTACHMENT_FILENAME)
 
 
 if __name__ == '__main__':
